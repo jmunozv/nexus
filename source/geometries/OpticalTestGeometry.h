@@ -67,20 +67,22 @@ namespace nexus {
     // Setup configuration & dimensions
     G4double  setup_radius_;    
     G4double  sensor_radius_;
+    G4double  setup_ini_z_;
 
     // Materials
     G4String    gas_name_;
     G4double    gas_pressure_, gas_temperature_;
     G4Material* xenon_gas_;
+    G4Material* tpb_mat_;
+    G4Material* teflon_mat_;
+    G4Material* ito_mat_;
+    G4Material* quartz_mat_;
 
     // AD-HOC vertex
     G4double adhoc_x_, adhoc_y_, adhoc_z_;
 
     // Relevant PhysicalVolume
     G4VPhysicalVolume* gas_phys_;
-
-    // Positions
-    G4double setup_ini_z_;
   };
 
 } // end namespace nexus

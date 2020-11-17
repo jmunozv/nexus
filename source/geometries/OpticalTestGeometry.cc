@@ -40,6 +40,7 @@ OpticalTestGeometry::OpticalTestGeometry():
   sensors_visibility_ (false),
   msg_                (nullptr),
   setup_radius_       (10. * cm),
+  sensor_radius_      (10. * cm),
   gas_name_           ("enrichedXe"),
   gas_pressure_       (15.  * bar),
   gas_temperature_    (300. * kelvin),
@@ -51,9 +52,6 @@ OpticalTestGeometry::OpticalTestGeometry():
   // Messenger
   msg_ = new G4GenericMessenger(this, "/Geometry/OpticalTest/",
                                 "Control commands of the OpticalTest geometry.");
-
-  // Hard-wired dimensions
-  sensor_radius_  = 100. * cm;
 
   // Parametrized dimensions
   DefineConfigurationParameters();
@@ -77,13 +75,21 @@ void OpticalTestGeometry::DefineConfigurationParameters()
   msg_->DeclareProperty("setup_vis",   setup_visibility_,   "Setup visibility");
   msg_->DeclareProperty("sensors_vis", sensors_visibility_, "Sensors visibility");
 
-  // Setup
+  // Setup radius
   G4GenericMessenger::Command& setup_radius_cmd =
     msg_->DeclareProperty("setup_radius", setup_radius_,
                           "Setup radius.");
-  setup_radius_cmd.SetUnitCategory("Distance");
+  setup_radius_cmd.SetUnitCategory("Length");
   setup_radius_cmd.SetParameterName("setup_radius", false);
   setup_radius_cmd.SetRange("setup_radius>0.");
+
+  // Sensor radius
+  G4GenericMessenger::Command& sensor_radius_cmd =
+    msg_->DeclareProperty("sensor_radius", sensor_radius_,
+                          "Sensor radius.");
+  sensor_radius_cmd.SetUnitCategory("Length");
+  sensor_radius_cmd.SetParameterName("sensor_radius", false);
+  sensor_radius_cmd.SetRange("sensor_radius>0.");
 
   // Gas properties
   msg_->DeclareProperty("gas", gas_name_, "Xenon gas type.");
@@ -139,10 +145,26 @@ void OpticalTestGeometry::DefineMaterials()
   else
     G4Exception("[NextParam]", "DefineMaterials()", FatalException,
     "Unknown xenon gas type. Valid options are naturalXe, enrichedXe or depletedXe.");
+
   xenon_gas_->SetMaterialPropertiesTable(OpticalMaterialProperties::GXe(gas_pressure_,
                                                                         gas_temperature_,
                                                                         25510 * (1./MeV)));
 
+  // Defining wls TPB
+  tpb_mat_ = MaterialsList::TPB();
+  tpb_mat_->SetMaterialPropertiesTable(OpticalMaterialProperties::TPB());
+
+  // Derfining the TEFLON
+  teflon_mat_ = G4NistManager::Instance()->FindOrBuildMaterial("G4_TEFLON");
+
+  // Defining ITO coating
+  ito_mat_ = MaterialsList::ITO();
+  ito_mat_->SetMaterialPropertiesTable(OpticalMaterialProperties::ITO());
+
+  // Defining Quartz
+  quartz_mat_ = MaterialsList::FusedSilica();
+  quartz_mat_->SetMaterialPropertiesTable(OpticalMaterialProperties::FusedSilica());
+  //quartz_mat_->SetMaterialPropertiesTable(OpticalMaterialProperties::FusedSilica90());
 }
 
 
@@ -180,15 +202,11 @@ void OpticalTestGeometry::Construct()
   G4Box* gas_solid = new G4Box(gas_name, gas_size/2.,
                                gas_size/2., gas_size/2.);
 
-  G4LogicalVolume* gas_logic = new G4LogicalVolume(gas_solid,
-                                                   xenon_gas_, gas_name);
-
+  G4LogicalVolume* gas_logic = new G4LogicalVolume(gas_solid, xenon_gas_, gas_name);
   gas_logic->SetVisAttributes(G4VisAttributes::Invisible);
 
-  gas_phys_ = 
-    new G4PVPlacement(nullptr, G4ThreeVector(0.,0.,0.), gas_logic,
-                      gas_name, lab_logic, false, 0, true);
-
+  gas_phys_ = new G4PVPlacement(nullptr, G4ThreeVector(0.,0.,0.), gas_logic,
+                                gas_name, lab_logic, false, 0, true);
 
   // Build the setup to study
   BuildSetup(gas_logic);
@@ -204,77 +222,85 @@ void OpticalTestGeometry::Construct()
 
 void OpticalTestGeometry::BuildSetup(G4LogicalVolume* mother_logic) {
 
-  /// Layers to implement
-  const G4int num_layers = 2;
-  G4String layer_names  [num_layers] = {"WLS"   , "TEFLON"};
-  G4double layer_thicks [num_layers] = {1. * um , 5. * mm };
-
-
   /// Verbosity
   if(verbosity_) {
-    G4cout << G4endl << "*** OpticalTest SETUP ..." << G4endl;
+    G4cout << G4endl << "*** OpticalTest SETUP ***" << G4endl;
   }
 
+  /// Building layers ... ///
 
-  /// Building layers ...
-  setup_ini_z_ = 0;
+  // Layers starting at this z
+  setup_ini_z_         = 0.;
+  G4int    num_layers  = 0;
   G4String layer_name;
-  G4double layer_thick;
+  G4double layer_thickn;
+  G4double layer_rad;
   G4double layer_pos_z;
-  G4Tubs*  layer_solid;
-  G4LogicalVolume* layer_logic;
+
+  G4Tubs*            layer_solid;
+  G4LogicalVolume*   layer_logic;
   G4VPhysicalVolume* layer_phys;
-  G4OpticalSurface* optSurf;
+  G4OpticalSurface*  opt_surf;
+  G4VisAttributes    layer_color;
 
-  // Layer 0 (TPB)
-  layer_name  = layer_names[0];
-  layer_thick = layer_thicks[0];
 
-  setup_ini_z_ -= layer_thick;
-  layer_pos_z   = setup_ini_z_ + layer_thick/2.;
+  /// Layer TPB
+  num_layers   += 1;
+  layer_name    = "TPB";
+  layer_thickn  = 1.  * um;
+  layer_rad     = setup_radius_;
+  layer_pos_z   = setup_ini_z_ - layer_thickn/2.;
+  setup_ini_z_ -= layer_thickn;
+  layer_color   = nexus::LightBlue();
 
-  layer_solid = new G4Tubs(layer_name, 0., setup_radius_, layer_thick/2., 0, twopi);
+  if (verbosity_)
+    G4cout << "*** Layer " << num_layers-1 << ": " << layer_name << G4endl <<
+              "    Rad: "  << layer_rad    << "  Zs from " << setup_ini_z_  <<
+              " to "       << setup_ini_z_ + layer_thickn << G4endl;
 
-  G4Material* layer_mat = MaterialsList::TPB();
-  layer_mat->SetMaterialPropertiesTable(OpticalMaterialProperties::TPB());
+  layer_solid = new G4Tubs(layer_name, 0., layer_rad, layer_thickn/2., 0, twopi);
 
-  layer_logic = new G4LogicalVolume(layer_solid, layer_mat, layer_name);
+  layer_logic = new G4LogicalVolume(layer_solid, tpb_mat_, layer_name);
 
-  if (setup_visibility_) layer_logic->SetVisAttributes(nexus::LightBlue());
+  layer_phys  = new G4PVPlacement(nullptr, G4ThreeVector(0., 0., layer_pos_z), layer_logic,
+                                  layer_name, mother_logic, false, 0, verbosity_);
+
+  opt_surf = new G4OpticalSurface(layer_name, glisur, ground, dielectric_dielectric, 0.01);
+  new G4LogicalBorderSurface(layer_name + "OPSURF", layer_phys, gas_phys_, opt_surf);
+  new G4LogicalBorderSurface(layer_name + "OPSURF", gas_phys_, layer_phys, opt_surf);
+
+  if (setup_visibility_) layer_logic->SetVisAttributes(layer_color);
   else                   layer_logic->SetVisAttributes(G4VisAttributes::Invisible);
 
-  layer_phys = new G4PVPlacement(nullptr, G4ThreeVector(0., 0., layer_pos_z), layer_logic,
-                                 layer_name, mother_logic, false, 0, verbosity_);
-
-  optSurf = new G4OpticalSurface(layer_name, glisur, ground, dielectric_dielectric, 0.01);
-    
-  new G4LogicalBorderSurface(layer_name + "OPSURF", layer_phys, gas_phys_, optSurf);
-  new G4LogicalBorderSurface(layer_name + "OPSURF", gas_phys_, layer_phys, optSurf);
 
 
-  // Layer 1 (PTFE)
-  layer_name  = layer_names[1];
-  layer_thick = layer_thicks[1];
+  /// Layer TEFLON
+  num_layers   += 1;
+  layer_name    = "TEFLON";
+  layer_thickn  = 5. * mm;
+  layer_rad     = setup_radius_;
+  layer_pos_z   = setup_ini_z_ - layer_thickn/2.;
+  setup_ini_z_ -= layer_thickn;
+  layer_color   = nexus::Blue();
 
-  setup_ini_z_ -= layer_thick;
-  layer_pos_z   = setup_ini_z_ + layer_thick/2.;
+  if (verbosity_)
+    G4cout << "*** Layer " << num_layers-1 << ": " << layer_name << G4endl <<
+              "    Rad: "  << layer_rad    << "  Zs from " << setup_ini_z_  <<
+              " to "       << setup_ini_z_ + layer_thickn << G4endl;
 
-  layer_solid = new G4Tubs(layer_name, 0., setup_radius_, layer_thick/2., 0, twopi);
+  layer_solid = new G4Tubs(layer_name, 0., layer_rad, layer_thickn/2., 0, twopi);
 
-  layer_mat = G4NistManager::Instance()->FindOrBuildMaterial("G4_TEFLON");
+  layer_logic = new G4LogicalVolume(layer_solid, teflon_mat_, layer_name);
 
-  layer_logic = new G4LogicalVolume(layer_solid, layer_mat, layer_name);
+  layer_phys  = new G4PVPlacement(nullptr, G4ThreeVector(0., 0., layer_pos_z), layer_logic,
+                                  layer_name, mother_logic, false, 0, verbosity_);
 
-  if (setup_visibility_) layer_logic->SetVisAttributes(nexus::White());
+  opt_surf = new G4OpticalSurface(layer_name + "OPSURF", unified, ground, dielectric_metal);
+  opt_surf->SetMaterialPropertiesTable(OpticalMaterialProperties::PTFE());
+  new G4LogicalSkinSurface(layer_name + "OPSURF", layer_logic, opt_surf);
+
+  if (setup_visibility_) layer_logic->SetVisAttributes(layer_color);
   else                   layer_logic->SetVisAttributes(G4VisAttributes::Invisible);
-
-  layer_phys = new G4PVPlacement(nullptr, G4ThreeVector(0., 0., layer_pos_z), layer_logic,
-                                 layer_name, mother_logic, false, 0, verbosity_);
-
-  optSurf = new G4OpticalSurface(layer_name + "OPSURF", unified, ground, dielectric_metal);
-  optSurf->SetMaterialPropertiesTable(OpticalMaterialProperties::PTFE());
-
-  new G4LogicalSkinSurface(layer_name + "OPSURF", layer_logic, optSurf);
 }
 
 
@@ -283,9 +309,8 @@ void OpticalTestGeometry::BuildSensors(G4LogicalVolume* mother_logic) {
 
   /// Verbosity
   if(verbosity_) {
-    G4cout << G4endl << "*** OpticalTest SENSORS ..." << G4endl;
+    G4cout << G4endl << "*** OpticalTest SENSORS ***" << G4endl;
   }
-
 
   /// Building the sensors
   G4String sensor_name       = "SENSOR";
@@ -296,9 +321,13 @@ void OpticalTestGeometry::BuildSensors(G4LogicalVolume* mother_logic) {
   G4Material* sensor_mat = G4NistManager::Instance()->FindOrBuildMaterial("G4_Si");
 
   // Front & Rear
-  G4double sensor_thickness   =  2. * mm;
-  G4double front_sensor_posZ  = 10. * mm     + sensor_thickness/2.;
-  G4double rear_sensor_posZ   = setup_ini_z_ - sensor_thickness/2.;
+  G4double sensor_thickness  =   1. * mm;
+  G4double front_sensor_iniZ =  10. * mm;
+  //G4double rear_sensor_iniZ  = -10. * mm;
+  G4double rear_sensor_iniZ  = setup_ini_z_ - sensor_thickness; // Placement sticked to the setup
+
+  G4double front_sensor_posZ = front_sensor_iniZ + sensor_thickness/2.;
+  G4double rear_sensor_posZ  = rear_sensor_iniZ  + sensor_thickness/2.;
 
   G4Tubs* sensor_solid =
     new G4Tubs(sensor_name, 0., sensor_radius_, sensor_thickness/2., 0., twopi);
@@ -312,9 +341,21 @@ void OpticalTestGeometry::BuildSensors(G4LogicalVolume* mother_logic) {
   // Lateral
   G4double lat_sensor_irad   = setup_radius_;
   G4double lat_sensor_orad   = lat_sensor_irad + sensor_thickness;
-  G4double lat_sensor_length = - setup_ini_z_;
-  G4double lat_sensor_posZ   = - lat_sensor_length/2.;
+  G4double lat_sensor_length = front_sensor_iniZ - rear_sensor_iniZ - sensor_thickness;
+  G4double lat_sensor_posZ   = front_sensor_iniZ - lat_sensor_length/2.;
 
+  // Verbosity
+  if (verbosity_)
+    G4cout << "*** FRONT & REAR sensors ... "  << G4endl <<
+              "    radius: " << sensor_radius_ << G4endl <<
+              "    FRONT Zs from "  << front_sensor_iniZ << " to " <<
+              front_sensor_iniZ + sensor_thickness << G4endl <<
+              "    REAR  Zs from "  << rear_sensor_iniZ  << " to " <<
+              rear_sensor_iniZ  + sensor_thickness << G4endl <<
+              "*** LATERAL sensor ... "  << G4endl <<
+              "    iRad: "  << lat_sensor_irad << "  oRad: " << lat_sensor_orad << G4endl;
+
+  // Building the sensors
   G4Tubs* lat_sensor_solid =
     new G4Tubs(lat_sensor_name, lat_sensor_irad, lat_sensor_orad,
                lat_sensor_length/2., 0., twopi);
@@ -324,30 +365,30 @@ void OpticalTestGeometry::BuildSensors(G4LogicalVolume* mother_logic) {
 
 
   /// Optical properties
-  G4MaterialPropertiesTable* sensor_optProp = new G4MaterialPropertiesTable();
+  G4MaterialPropertiesTable* sensor_opt_prop = new G4MaterialPropertiesTable();
 
   const G4int entries = 2;
   G4double energies[entries] = {0.20 * eV, 12.4 * eV};
 
   // It does not reflect anything
   G4double sensor_reflectivity[entries] = {0., 0.};
-  sensor_optProp->AddProperty("REFLECTIVITY", energies,
+  sensor_opt_prop->AddProperty("REFLECTIVITY", energies,
                               sensor_reflectivity, entries);
 
   // It detects everything
   G4double sensor_efficiency[entries] = {1., 1.};
-  sensor_optProp->AddProperty("EFFICIENCY", energies,
+  sensor_opt_prop->AddProperty("EFFICIENCY", energies,
                               sensor_efficiency, entries);
 
   // Building the optical surface
-  G4OpticalSurface* sensor_optSurf = 
+  G4OpticalSurface* sensor_opt_surf = 
     new G4OpticalSurface(sensor_name, unified, polished, dielectric_metal);
-  sensor_optSurf->SetMaterialPropertiesTable(sensor_optProp);
+  sensor_opt_surf->SetMaterialPropertiesTable(sensor_opt_prop);
 
   // Giving the optical surface to sensors
-  new G4LogicalSkinSurface(sensor_name, front_sensor_logic, sensor_optSurf);
-  new G4LogicalSkinSurface(sensor_name, rear_sensor_logic,  sensor_optSurf);
-  new G4LogicalSkinSurface(sensor_name, lat_sensor_logic,   sensor_optSurf);
+  new G4LogicalSkinSurface(sensor_name, front_sensor_logic, sensor_opt_surf);
+  new G4LogicalSkinSurface(sensor_name, rear_sensor_logic,  sensor_opt_surf);
+  new G4LogicalSkinSurface(sensor_name, lat_sensor_logic,   sensor_opt_surf);
 
 
   /// Sensitive detector 
