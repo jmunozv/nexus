@@ -162,9 +162,16 @@ void OpticalTestGeometry::DefineMaterials()
   ito_mat_->SetMaterialPropertiesTable(OpticalMaterialProperties::ITO());
 
   // Defining Quartz
-  quartz_mat_ = MaterialsList::FusedSilica();
-  quartz_mat_->SetMaterialPropertiesTable(OpticalMaterialProperties::FusedSilica());
-  //quartz_mat_->SetMaterialPropertiesTable(OpticalMaterialProperties::FusedSilica90());
+  //quartz_mat_ = MaterialsList::FusedSilica();
+  quartz_mat_ = MaterialsList::CopyMaterial(MaterialsList::FusedSilica(), "quartz_mat");
+  //quartz_mat_->SetMaterialPropertiesTable(OpticalMaterialProperties::FusedSilica());
+  quartz_mat_->SetMaterialPropertiesTable(OpticalMaterialProperties::FakeFusedSilica(0.8, 3.2 * mm));
+
+  quartz_mat2_ = MaterialsList::FusedSilica();
+  //quartz_mat2_ = MaterialsList::CopyMaterial(MaterialsList::FusedSilica(), "quartz_mat2");
+  quartz_mat2_->SetMaterialPropertiesTable(OpticalMaterialProperties::FusedSilica());
+  //quartz_mat2_->SetMaterialPropertiesTable(OpticalMaterialProperties::FakeFusedSilica(0.8, 3.2 * mm));
+
 }
 
 
@@ -244,10 +251,11 @@ void OpticalTestGeometry::BuildSetup(G4LogicalVolume* mother_logic) {
   G4VisAttributes    layer_color;
 
 
-  /// Layer TPB
+
+  /// Layer Quartz (fused silica)
   num_layers   += 1;
-  layer_name    = "TPB";
-  layer_thickn  = 1.  * um;
+  layer_name    = "QUARTZ";
+  layer_thickn  = 3.2  * mm;
   layer_rad     = setup_radius_;
   layer_pos_z   = setup_ini_z_ - layer_thickn/2.;
   setup_ini_z_ -= layer_thickn;
@@ -260,47 +268,73 @@ void OpticalTestGeometry::BuildSetup(G4LogicalVolume* mother_logic) {
 
   layer_solid = new G4Tubs(layer_name, 0., layer_rad, layer_thickn/2., 0, twopi);
 
-  layer_logic = new G4LogicalVolume(layer_solid, tpb_mat_, layer_name);
+  layer_logic = new G4LogicalVolume(layer_solid, quartz_mat_, layer_name);
 
   layer_phys  = new G4PVPlacement(nullptr, G4ThreeVector(0., 0., layer_pos_z), layer_logic,
                                   layer_name, mother_logic, false, 0, verbosity_);
-
-  opt_surf = new G4OpticalSurface(layer_name, glisur, ground, dielectric_dielectric, 0.01);
-  new G4LogicalBorderSurface(layer_name + "OPSURF", layer_phys, gas_phys_, opt_surf);
-  new G4LogicalBorderSurface(layer_name + "OPSURF", gas_phys_, layer_phys, opt_surf);
 
   if (setup_visibility_) layer_logic->SetVisAttributes(layer_color);
   else                   layer_logic->SetVisAttributes(G4VisAttributes::Invisible);
 
 
 
-  /// Layer TEFLON
-  num_layers   += 1;
-  layer_name    = "TEFLON";
-  layer_thickn  = 5. * mm;
-  layer_rad     = setup_radius_;
-  layer_pos_z   = setup_ini_z_ - layer_thickn/2.;
-  setup_ini_z_ -= layer_thickn;
-  layer_color   = nexus::Blue();
-
-  if (verbosity_)
-    G4cout << "*** Layer " << num_layers-1 << ": " << layer_name << G4endl <<
-              "    Rad: "  << layer_rad    << "  Zs from " << setup_ini_z_  <<
-              " to "       << setup_ini_z_ + layer_thickn << G4endl;
-
-  layer_solid = new G4Tubs(layer_name, 0., layer_rad, layer_thickn/2., 0, twopi);
-
-  layer_logic = new G4LogicalVolume(layer_solid, teflon_mat_, layer_name);
-
-  layer_phys  = new G4PVPlacement(nullptr, G4ThreeVector(0., 0., layer_pos_z), layer_logic,
-                                  layer_name, mother_logic, false, 0, verbosity_);
-
-  opt_surf = new G4OpticalSurface(layer_name + "OPSURF", unified, ground, dielectric_metal);
-  opt_surf->SetMaterialPropertiesTable(OpticalMaterialProperties::PTFE());
-  new G4LogicalSkinSurface(layer_name + "OPSURF", layer_logic, opt_surf);
-
-  if (setup_visibility_) layer_logic->SetVisAttributes(layer_color);
-  else                   layer_logic->SetVisAttributes(G4VisAttributes::Invisible);
+//  /// Layer TPB
+//  num_layers   += 1;
+//  layer_name    = "TPB";
+//  layer_thickn  = 1.  * um;
+//  layer_rad     = setup_radius_;
+//  layer_pos_z   = setup_ini_z_ - layer_thickn/2.;
+//  setup_ini_z_ -= layer_thickn;
+//  layer_color   = nexus::LightBlue();
+//
+//  if (verbosity_)
+//    G4cout << "*** Layer " << num_layers-1 << ": " << layer_name << G4endl <<
+//              "    Rad: "  << layer_rad    << "  Zs from " << setup_ini_z_  <<
+//              " to "       << setup_ini_z_ + layer_thickn << G4endl;
+//
+//  layer_solid = new G4Tubs(layer_name, 0., layer_rad, layer_thickn/2., 0, twopi);
+//
+//  layer_logic = new G4LogicalVolume(layer_solid, tpb_mat_, layer_name);
+//
+//  layer_phys  = new G4PVPlacement(nullptr, G4ThreeVector(0., 0., layer_pos_z), layer_logic,
+//                                  layer_name, mother_logic, false, 0, verbosity_);
+//
+//  opt_surf = new G4OpticalSurface(layer_name, glisur, ground, dielectric_dielectric, 0.01);
+//  new G4LogicalBorderSurface(layer_name + "OPSURF", layer_phys, gas_phys_, opt_surf);
+//  new G4LogicalBorderSurface(layer_name + "OPSURF", gas_phys_, layer_phys, opt_surf);
+//
+//  if (setup_visibility_) layer_logic->SetVisAttributes(layer_color);
+//  else                   layer_logic->SetVisAttributes(G4VisAttributes::Invisible);
+//
+//
+//
+//  /// Layer TEFLON
+//  num_layers   += 1;
+//  layer_name    = "TEFLON";
+//  layer_thickn  = 5. * mm;
+//  layer_rad     = setup_radius_;
+//  layer_pos_z   = setup_ini_z_ - layer_thickn/2.;
+//  setup_ini_z_ -= layer_thickn;
+//  layer_color   = nexus::Blue();
+//
+//  if (verbosity_)
+//    G4cout << "*** Layer " << num_layers-1 << ": " << layer_name << G4endl <<
+//              "    Rad: "  << layer_rad    << "  Zs from " << setup_ini_z_  <<
+//              " to "       << setup_ini_z_ + layer_thickn << G4endl;
+//
+//  layer_solid = new G4Tubs(layer_name, 0., layer_rad, layer_thickn/2., 0, twopi);
+//
+//  layer_logic = new G4LogicalVolume(layer_solid, teflon_mat_, layer_name);
+//
+//  layer_phys  = new G4PVPlacement(nullptr, G4ThreeVector(0., 0., layer_pos_z), layer_logic,
+//                                  layer_name, mother_logic, false, 0, verbosity_);
+//
+//  opt_surf = new G4OpticalSurface(layer_name + "OPSURF", unified, ground, dielectric_metal);
+//  opt_surf->SetMaterialPropertiesTable(OpticalMaterialProperties::PTFE());
+//  new G4LogicalSkinSurface(layer_name + "OPSURF", layer_logic, opt_surf);
+//
+//  if (setup_visibility_) layer_logic->SetVisAttributes(layer_color);
+//  else                   layer_logic->SetVisAttributes(G4VisAttributes::Invisible);
 }
 
 

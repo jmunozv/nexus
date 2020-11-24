@@ -77,6 +77,7 @@ namespace nexus {
     G4Material* teflon_mat_;
     G4Material* ito_mat_;
     G4Material* quartz_mat_;
+    G4Material* quartz_mat2_;
 
     // AD-HOC vertex
     G4double adhoc_x_, adhoc_y_, adhoc_z_;
