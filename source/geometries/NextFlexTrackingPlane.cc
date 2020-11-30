@@ -376,9 +376,9 @@ void NextFlexTrackingPlane::BuildTeflon()
     new G4PVPlacement(nullptr, hole_pos, hole_logic, hole_name,
                       teflon_logic, true, SiPM_id, false);
 
-    G4ThreeVector wls_hole_pos = SiPM_positions_[i];
-    new G4PVPlacement(nullptr, wls_hole_pos, wls_hole_logic, wls_hole_name,
-                      teflon_wls_logic, true, SiPM_id, false);
+    //G4ThreeVector wls_hole_pos = SiPM_positions_[i];
+    //new G4PVPlacement(nullptr, wls_hole_pos, wls_hole_logic, wls_hole_name,
+    //                  teflon_wls_logic, true, SiPM_id, false);
 
     if (sipm_verbosity_) G4cout << "* TP_SiPM " << SiPM_id << " position: " 
                                 << hole_pos << G4endl;
