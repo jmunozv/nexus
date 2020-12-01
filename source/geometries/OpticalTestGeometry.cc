@@ -245,10 +245,6 @@ void OpticalTestGeometry::BuildSetup(G4LogicalVolume* mother_logic) {
   G4double layer_orad;
   G4double layer_pos_z;
 
-  G4Tubs*            layer_solid;
-  G4LogicalVolume*   layer_logic;
-  G4VPhysicalVolume* layer_phys;
-  G4OpticalSurface*  opt_surf;
   G4VisAttributes    layer_color;
 
 
@@ -267,20 +263,20 @@ void OpticalTestGeometry::BuildSetup(G4LogicalVolume* mother_logic) {
               "    Rad: "  << layer_irad   << " to " << layer_orad << G4endl <<
               "    Zs:  "  << setup_ini_z_ << " to " << setup_ini_z_ + layer_thickn << G4endl;
 
-  layer_solid = new G4Tubs(layer_name, layer_irad, layer_orad, layer_thickn/2., 0, twopi);
+  G4Tubs* tpb_layer_solid = new G4Tubs(layer_name, layer_irad, layer_orad, layer_thickn/2., 0, twopi);
 
-  layer_logic = new G4LogicalVolume(layer_solid, tpb_mat_, layer_name);
+  G4LogicalVolume* tpb_layer_logic = new G4LogicalVolume(tpb_layer_solid, tpb_mat_, layer_name);
 
-  layer_phys  = new G4PVPlacement(nullptr, G4ThreeVector(0., 0., layer_pos_z), layer_logic,
-                                  layer_name, mother_logic, false, 0, verbosity_);
+  G4VPhysicalVolume* tpb_layer_phys  = new G4PVPlacement(nullptr, G4ThreeVector(0., 0., layer_pos_z), tpb_layer_logic,
+                                                         layer_name, mother_logic, false, 0, verbosity_);
 
-  opt_surf = new G4OpticalSurface(layer_name, glisur, ground, dielectric_dielectric, 0.01);
-  new G4LogicalSkinSurface(layer_name + "OPSURF", layer_logic, opt_surf);
-  //new G4LogicalBorderSurface(layer_name + "OPSURF", layer_phys, gas_phys_, opt_surf);
-  //new G4LogicalBorderSurface(layer_name + "OPSURF", gas_phys_, layer_phys, opt_surf);
+  G4OpticalSurface* tpb_opt_surf = new G4OpticalSurface(layer_name, glisur, ground, dielectric_dielectric, 0.01);
+  new G4LogicalSkinSurface(layer_name + "OPSURF", tpb_layer_logic, tpb_opt_surf);
+  //new G4LogicalBorderSurface(layer_name + "OPSURF", tpb_layer_phys, gas_phys_, opt_surf);
+  //new G4LogicalBorderSurface(layer_name + "OPSURF", gas_phys_, tpb_layer_phys, opt_surf);
 
-  if (setup_visibility_) layer_logic->SetVisAttributes(layer_color);
-  else                   layer_logic->SetVisAttributes(G4VisAttributes::Invisible);
+  if (setup_visibility_) tpb_layer_logic->SetVisAttributes(layer_color);
+  else                   tpb_layer_logic->SetVisAttributes(G4VisAttributes::Invisible);
 
 
   /// Layer ITO (fused silica)
@@ -298,15 +294,15 @@ void OpticalTestGeometry::BuildSetup(G4LogicalVolume* mother_logic) {
               "    Rad: "  << layer_irad   << " to " << layer_orad << G4endl <<
               "    Zs:  "  << setup_ini_z_ << " to " << setup_ini_z_ + layer_thickn << G4endl;
 
-  layer_solid = new G4Tubs(layer_name, layer_irad, layer_orad, layer_thickn/2., 0, twopi);
+  G4Tubs* ito_layer_solid = new G4Tubs(layer_name, layer_irad, layer_orad, layer_thickn/2., 0, twopi);
 
-  layer_logic = new G4LogicalVolume(layer_solid, ito_mat_, layer_name);
+  G4LogicalVolume* ito_layer_logic = new G4LogicalVolume(ito_layer_solid, ito_mat_, layer_name);
 
-  layer_phys  = new G4PVPlacement(nullptr, G4ThreeVector(0., 0., layer_pos_z), layer_logic,
+  G4VPhysicalVolume* ito_layer_phys  = new G4PVPlacement(nullptr, G4ThreeVector(0., 0., layer_pos_z), ito_layer_logic,
                                   layer_name, mother_logic, false, 0, verbosity_);
 
-  if (setup_visibility_) layer_logic->SetVisAttributes(layer_color);
-  else                   layer_logic->SetVisAttributes(G4VisAttributes::Invisible);
+  if (setup_visibility_) ito_layer_logic->SetVisAttributes(layer_color);
+  else                   ito_layer_logic->SetVisAttributes(G4VisAttributes::Invisible);
 
 
   /// Layer Quartz (fused silica)
@@ -324,15 +320,15 @@ void OpticalTestGeometry::BuildSetup(G4LogicalVolume* mother_logic) {
               "    Rad: "  << layer_irad   << " to " << layer_orad << G4endl <<
               "    Zs:  "  << setup_ini_z_ << " to " << setup_ini_z_ + layer_thickn << G4endl;
 
-  layer_solid = new G4Tubs(layer_name, layer_irad, layer_orad, layer_thickn/2., 0, twopi);
+  G4Tubs* quartz_layer_solid = new G4Tubs(layer_name, layer_irad, layer_orad, layer_thickn/2., 0, twopi);
 
-  layer_logic = new G4LogicalVolume(layer_solid, quartz_mat_, layer_name);
+  G4LogicalVolume* quartz_layer_logic = new G4LogicalVolume(quartz_layer_solid, quartz_mat_, layer_name);
 
-  layer_phys  = new G4PVPlacement(nullptr, G4ThreeVector(0., 0., layer_pos_z), layer_logic,
-                                  layer_name, mother_logic, false, 0, verbosity_);
+  G4VPhysicalVolume* quartz_layer_phys = new G4PVPlacement(nullptr, G4ThreeVector(0., 0., layer_pos_z), quartz_layer_logic,
+                                                           layer_name, mother_logic, false, 0, verbosity_);
 
-  if (setup_visibility_) layer_logic->SetVisAttributes(layer_color);
-  else                   layer_logic->SetVisAttributes(G4VisAttributes::Invisible);
+  if (setup_visibility_) quartz_layer_logic->SetVisAttributes(layer_color);
+  else                   quartz_layer_logic->SetVisAttributes(G4VisAttributes::Invisible);
 
 
 //  /// Layer TEFLON
@@ -350,19 +346,19 @@ void OpticalTestGeometry::BuildSetup(G4LogicalVolume* mother_logic) {
 //              "    Rad: "  << layer_irad   << " to " << layer_orad << G4endl <<
 //              "    Zs:  "  << setup_ini_z_ << " to " << setup_ini_z_ + layer_thickn << G4endl;
 //
-//  layer_solid = new G4Tubs(layer_name, layer_irad, layer_orad, layer_thickn/2., 0, twopi);
+//  G4Tubs* teflon_layer_solid = new G4Tubs(layer_name, layer_irad, layer_orad, layer_thickn/2., 0, twopi);
 //
-//  layer_logic = new G4LogicalVolume(layer_solid, teflon_mat_, layer_name);
+//  G4LogicalVolume* teflon_layer_logic = new G4LogicalVolume(teflon_layer_solid, teflon_mat_, layer_name);
 //
-//  layer_phys  = new G4PVPlacement(nullptr, G4ThreeVector(0., 0., layer_pos_z), layer_logic,
-//                                  layer_name, mother_logic, false, 0, verbosity_);
+//  G4VPhysicalVolume* teflon_layer_phys  = new G4PVPlacement(nullptr, G4ThreeVector(0., 0., layer_pos_z), teflon_layer_logic,
+//                                                            layer_name, mother_logic, false, 0, verbosity_);
 //
-//  opt_surf = new G4OpticalSurface(layer_name + "OPSURF", unified, ground, dielectric_metal);
-//  opt_surf->SetMaterialPropertiesTable(OpticalMaterialProperties::PTFE());
-//  new G4LogicalSkinSurface(layer_name + "OPSURF", layer_logic, opt_surf);
+//  G4OpticalSurface* teflon_opt_surf = new G4OpticalSurface(layer_name + "OPSURF", unified, ground, dielectric_metal);
+//  teflon_opt_surf->SetMaterialPropertiesTable(OpticalMaterialProperties::PTFE());
+//  new G4LogicalSkinSurface(layer_name + "OPSURF", teflon_layer_logic, teflon_opt_surf);
 //
-//  if (setup_visibility_) layer_logic->SetVisAttributes(layer_color);
-//  else                   layer_logic->SetVisAttributes(G4VisAttributes::Invisible);
+//  if (setup_visibility_) teflon_layer_logic->SetVisAttributes(layer_color);
+//  else                   teflon_layer_logic->SetVisAttributes(G4VisAttributes::Invisible);
 
 }
 
