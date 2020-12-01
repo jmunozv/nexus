@@ -386,8 +386,8 @@ void OpticalTestGeometry::BuildSensors(G4LogicalVolume* mother_logic) {
   // Front & Rear
   G4double sensor_thickness  =   1. * mm;
   G4double front_sensor_iniZ =  10. * mm;
-  //G4double rear_sensor_iniZ  = -10. * mm;
-  G4double rear_sensor_iniZ  = setup_ini_z_ - sensor_thickness; // Placement sticked to the setup
+  G4double rear_sensor_iniZ  = -10. * mm;
+  //G4double rear_sensor_iniZ  = setup_ini_z_ - sensor_thickness; // Placement sticked to the setup
 
   G4double front_sensor_posZ = front_sensor_iniZ + sensor_thickness/2.;
   G4double rear_sensor_posZ  = rear_sensor_iniZ  + sensor_thickness/2.;
